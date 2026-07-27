@@ -1,0 +1,58 @@
+/*---------------------------------------------------------*\
+| PalitGPUControllerDetect.cpp                              |
+|                                                           |
+|   Detector for Palit GPU                                  |
+|                                                           |
+|   Manatsawin Hanmongkolchai                   11 Apr 2023 |
+|                                                           |
+|   This file is part of the OpenRGB project                |
+|   SPDX-License-Identifier: GPL-2.0-or-later               |
+\*---------------------------------------------------------*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "DetectionManager.h"
+#include "i2c_smbus.h"
+#include "PalitGPUController.h"
+#include "pci_ids.h"
+#include "RGBController_PalitGPU.h"
+
+DetectedControllers DetectPalitGPUControllers(i2c_smbus_interface* bus, uint8_t i2c_addr, const std::string& name)
+{
+    DetectedControllers detected_controllers;
+
+    if(bus->info.port_id == 1)
+    {
+        /*-----------------------------------------------------*\
+        | Check for PALIT string                                |
+        \*-----------------------------------------------------*/
+        const uint8_t   palit[] = {'P', 'A', 'L', 'I', 'T'};
+        bool            match = true;
+
+        for(size_t i = 0; i < sizeof(palit); i++)
+        {
+            int32_t letter = bus->i2c_smbus_read_byte_data(i2c_addr, 0x07 + (u8)i);
+
+            if(palit[i] != letter)
+            {
+                match = false;
+            }
+        }
+
+        if(match)
+        {
+            PalitGPUController*     controller      = new PalitGPUController(bus, i2c_addr, name);
+            RGBController_PalitGPU* rgb_controller  = new RGBController_PalitGPU(controller);
+
+            DetectionManager::get()->RegisterRGBController(rgb_controller);
+        }
+    }
+
+    return(detected_controllers);
+}
+
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce GTX 1060",    DetectPalitGPUControllers, NVIDIA_VEN, NVIDIA_GTX1060_DEV, NVIDIA_SUB_VEN, NVIDIA_GTX1060_DEV,     0x08);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce GTX 1070",    DetectPalitGPUControllers, NVIDIA_VEN, NVIDIA_GTX1070_DEV, NVIDIA_SUB_VEN, NVIDIA_GTX1070_DEV,     0x08);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce GTX 1070 Ti", DetectPalitGPUControllers, NVIDIA_VEN, NVIDIA_GTX1070TI_DEV, NVIDIA_SUB_VEN, NVIDIA_GTX1070TI_DEV, 0x08);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce GTX 1080",    DetectPalitGPUControllers, NVIDIA_VEN, NVIDIA_GTX1080_DEV, NVIDIA_SUB_VEN, NVIDIA_GTX1080_DEV,     0x08);
+REGISTER_I2C_PCI_DETECTOR("Palit GeForce GTX 1080 Ti", DetectPalitGPUControllers, NVIDIA_VEN, NVIDIA_GTX1080TI_DEV, NVIDIA_SUB_VEN, NVIDIA_GTX1080TI_DEV, 0x08);
