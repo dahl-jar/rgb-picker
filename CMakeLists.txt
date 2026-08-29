@@ -384,13 +384,24 @@ if(WIN32 AND TARGET rgb-picker)
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 RESULT_VARIABLE runtime_lookup_result
             )
+            set(runtime_library_candidates)
             if(
                 runtime_lookup_result EQUAL 0
                 AND NOT runtime_library_path STREQUAL runtime_library
-                AND EXISTS ${runtime_library_path}
             )
-                install(FILES ${runtime_library_path} DESTINATION .)
-            elseif(RGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS)
+                list(APPEND runtime_library_candidates "${runtime_library_path}")
+            endif()
+            list(APPEND runtime_library_candidates "${mingw_binary_directory}/${runtime_library}")
+
+            set(runtime_library_found OFF)
+            foreach(runtime_library_candidate IN LISTS runtime_library_candidates)
+                if(EXISTS "${runtime_library_candidate}")
+                    install(FILES "${runtime_library_candidate}" DESTINATION .)
+                    set(runtime_library_found ON)
+                    break()
+                endif()
+            endforeach()
+            if(RGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS AND NOT runtime_library_found)
                 message(FATAL_ERROR "Unable to locate MinGW runtime library: ${runtime_library}")
             endif()
         endforeach()

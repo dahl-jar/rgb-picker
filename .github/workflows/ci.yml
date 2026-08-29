@@ -26,8 +26,10 @@ jobs:
       - name: Install tools
         run: |
           sudo apt-get update
-          sudo apt-get install --yes clang-tidy ninja-build
+          sudo apt-get install --yes clang-tidy libc++-dev libc++abi-dev ninja-build
       - name: Configure
+        env:
+          CXXFLAGS: -stdlib=libc++
         run: >-
           cmake -S . -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Debug
@@ -66,22 +68,27 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
-  sanitizers:
-    name: Sanitizers
+  memory-safety:
+    name: Memory safety
     runs-on: ubuntu-24.04
     steps:
       - name: Check out source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libc++-dev libc++abi-dev
       - name: Configure
+        env:
+          CXXFLAGS: -stdlib=libc++ -fsanitize=address,undefined -fno-omit-frame-pointer
+          LDFLAGS: -stdlib=libc++ -fsanitize=address,undefined
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Debug
           -DCMAKE_C_COMPILER=clang
           -DCMAKE_CXX_COMPILER=clang++
-          -DCMAKE_CXX_FLAGS=-fsanitize=address,undefined\ -fno-omit-frame-pointer
-          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined
           -DRGBPICKER_BUILD_GUI=OFF
           -DRGBPICKER_WARNINGS_AS_ERRORS=ON
           -DBUILD_TESTING=ON
@@ -92,6 +99,10 @@ jobs:
 
   windows:
     name: Windows package
+    needs:
+      - lint
+      - test
+      - memory-safety
     runs-on: windows-latest
     steps:
       - name: Configure Git line endings
