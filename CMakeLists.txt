@@ -133,7 +133,6 @@ if(WIN32)
         ${openrgb_fork}/Controllers/GigabyteRGBFusion2USBController/GigabyteRGBFusion2USBControllerDetect.cpp
         ${openrgb_fork}/dmiinfo/dmiinfo.cpp
         ${openrgb_fork}/wmi/wmi.cpp
-        ${openrgb_shim}/comsupp_mingw.cpp
         ${openrgb_fork}/i2c_smbus/i2c_smbus.cpp
         ${openrgb_fork}/i2c_smbus/Windows/i2c_smbus_nvapi.cpp
         ${openrgb_fork}/dependencies/NVFC/nvapi.cpp
@@ -182,6 +181,31 @@ if(WIN32)
     add_custom_target(libusb_import_lib DEPENDS ${libusb_import})
     add_dependencies(openrgb_drivers libusb_import_lib)
     target_link_libraries(openrgb_drivers PUBLIC hidapi wbemuuid ole32 oleaut32 ${libusb_import})
+
+    if(MINGW)
+        include(CheckCXXSourceCompiles)
+        set(rgbpicker_required_libraries ${CMAKE_REQUIRED_LIBRARIES})
+        set(CMAKE_REQUIRED_LIBRARIES oleaut32)
+        check_cxx_source_compiles(
+            [=[
+                #include <comdef.h>
+
+                int main()
+                {
+                    BSTR wide = _com_util::ConvertStringToBSTR("rgb-picker");
+                    char* narrow = _com_util::ConvertBSTRToString(wide);
+                    delete[] narrow;
+                    SysFreeString(wide);
+                    return 0;
+                }
+            ]=]
+            RGBPICKER_MINGW_HAS_COM_CONVERSIONS
+        )
+        set(CMAKE_REQUIRED_LIBRARIES ${rgbpicker_required_libraries})
+        if(NOT RGBPICKER_MINGW_HAS_COM_CONVERSIONS)
+            target_sources(openrgb_drivers PRIVATE ${openrgb_shim}/comsupp_mingw.cpp)
+        endif()
+    endif()
 
     function(rgbpicker_ship_libusb target)
         add_custom_command(
