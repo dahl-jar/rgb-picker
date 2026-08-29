@@ -1,4 +1,4 @@
-#include "gui/worker.h"
+#include "gui/app/worker.h"
 
 namespace rgbpicker::gui {
 

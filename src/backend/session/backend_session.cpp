@@ -42,18 +42,6 @@ Backend* BackendSession::poll()
     }
     m_retryScheduled = false;
 
-    if (m_config.mode == BackendMode::simulation) {
-        m_backend = m_factory.createSimulation();
-        if (m_backend == nullptr) {
-            ++m_status.attempts;
-            setPhase(BackendSessionPhase::waiting, "Simulation backend unavailable");
-            scheduleRetry();
-            return nullptr;
-        }
-        m_status.attempts = 0;
-        setPhase(BackendSessionPhase::ready, "Simulation running");
-        return m_backend.get();
-    }
     return createBackend();
 }
 

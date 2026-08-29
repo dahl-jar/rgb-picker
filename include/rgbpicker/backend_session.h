@@ -9,11 +9,6 @@
 
 namespace rgbpicker {
 
-enum class BackendMode {
-    hardware,
-    simulation,
-};
-
 enum class BackendSessionPhase {
     idle,
     ready,
@@ -21,7 +16,6 @@ enum class BackendSessionPhase {
 };
 
 struct BackendSessionConfig {
-    BackendMode mode{BackendMode::hardware};
     std::chrono::milliseconds firstRetryDelay{500};
     std::chrono::milliseconds maxRetryDelay{10000};
 };

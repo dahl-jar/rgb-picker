@@ -12,7 +12,6 @@
 namespace rgbpicker {
 
 struct Options {
-    bool simulate{};
     std::vector<std::string> command;
 };
 
@@ -24,8 +23,6 @@ struct CommandArguments {
 };
 
 void printUsage(std::ostream& error);
-
-std::optional<Options> parseOptions(const std::vector<std::string>& arguments);
 
 std::optional<CommandArguments> parseCommandArguments(const Options& options,
                                                       std::ostream& error);

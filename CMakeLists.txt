@@ -1,14 +1,34 @@
-cmake_minimum_required(VERSION 3.16)
-project(rgb-picker LANGUAGES C CXX)
+cmake_minimum_required(VERSION 3.22)
+
+set(RGBPICKER_VERSION "1.0.0" CACHE STRING "RGB Picker release version")
+if(NOT RGBPICKER_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+    message(FATAL_ERROR "RGBPICKER_VERSION must use MAJOR.MINOR.PATCH")
+endif()
+
+project(rgb-picker VERSION ${RGBPICKER_VERSION} LANGUAGES C CXX)
 
 include(CTest)
 
 option(RGBPICKER_BUILD_CLI "Build the rgb-ctl CLI" ON)
 option(RGBPICKER_BUILD_GUI "Build the rgb-picker desktop app (Windows)" ${WIN32})
+option(RGBPICKER_ENABLE_CLANG_TIDY "Run clang-tidy while compiling first-party C++" OFF)
+option(
+    RGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS
+    "Fail configuration when MinGW runtime DLLs cannot be packaged"
+    OFF
+)
+option(RGBPICKER_WARNINGS_AS_ERRORS "Treat first-party compiler warnings as errors" OFF)
+
+if(RGBPICKER_ENABLE_CLANG_TIDY)
+    find_program(RGBPICKER_CLANG_TIDY_EXECUTABLE NAMES clang-tidy REQUIRED)
+endif()
 
 function(rgbpicker_enable_warnings target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /permissive-)
+        if(RGBPICKER_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
     else()
         target_compile_options(
             ${target}
@@ -29,6 +49,19 @@ function(rgbpicker_enable_warnings target)
                 -Wformat=2
                 -Wimplicit-fallthrough
         )
+        if(RGBPICKER_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
+function(rgbpicker_enable_clang_tidy target)
+    if(RGBPICKER_ENABLE_CLANG_TIDY)
+        set_property(
+            TARGET ${target}
+            PROPERTY CXX_CLANG_TIDY
+                "${RGBPICKER_CLANG_TIDY_EXECUTABLE};--warnings-as-errors=*"
+        )
     endif()
 endfunction()
 
@@ -43,6 +76,7 @@ function(rgbpicker_target_defaults target)
             ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
     rgbpicker_enable_warnings(${target})
+    rgbpicker_enable_clang_tidy(${target})
 endfunction()
 
 add_library(rgbpicker_core src/core/color.cpp)
@@ -169,7 +203,6 @@ if(RGBPICKER_BUILD_CLI OR RGBPICKER_BUILD_GUI OR BUILD_TESTING)
         src/backend/hardware/driver_backend.cpp
         src/backend/hardware/hardware_backend.cpp
         src/backend/session/backend_session.cpp
-        src/backend/simulation/simulation_backend.cpp
     )
     rgbpicker_target_defaults(rgbpicker_backend)
     target_link_libraries(rgbpicker_backend PUBLIC rgbpicker_core PRIVATE rgbpicker_storage)
@@ -198,6 +231,7 @@ if(RGBPICKER_BUILD_CLI)
     target_compile_features(rgb-ctl PRIVATE cxx_std_23)
     target_link_libraries(rgb-ctl PRIVATE rgbpicker_cli)
     rgbpicker_enable_warnings(rgb-ctl)
+    rgbpicker_enable_clang_tidy(rgb-ctl)
     if(WIN32)
         rgbpicker_ship_libusb(rgb-ctl)
     endif()
@@ -212,7 +246,7 @@ if(RGBPICKER_BUILD_GUI)
     FetchContent_Declare(
         imgui
         GIT_REPOSITORY https://github.com/ocornut/imgui.git
-        GIT_TAG        v1.91.8
+        GIT_TAG        dbb5eeaadffb6a3ba6a60de1290312e5802dba5a
     )
     FetchContent_MakeAvailable(imgui)
 
@@ -234,19 +268,25 @@ if(RGBPICKER_BUILD_GUI)
     target_link_libraries(imgui_win32_dx11 PUBLIC d3d11 d3dcompiler dwmapi)
 
     enable_language(RC)
+    file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/gui.rc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/gui.rc
+        @ONLY
+    )
     add_executable(
         rgb-picker WIN32
         src/gui_main.cpp
-        src/gui/properties.cpp
-        src/gui/rail.cpp
-        src/gui/session.cpp
-        src/gui/settings_dialog.cpp
-        src/gui/shell.cpp
-        src/gui/worker.cpp
-        src/gui/workspace.cpp
-        src/gui/theme.cpp
-        src/gui/widgets.cpp
-        src/gui.rc
+        src/gui/devices/properties.cpp
+        src/gui/profiles/rail.cpp
+        src/gui/app/session.cpp
+        src/gui/settings/settings_dialog.cpp
+        src/gui/app/shell.cpp
+        src/gui/app/worker.cpp
+        src/gui/devices/workspace.cpp
+        src/gui/ui/theme.cpp
+        src/gui/ui/widgets.cpp
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/gui.rc
     )
     target_include_directories(rgb-picker PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
     target_compile_features(rgb-picker PRIVATE cxx_std_23)
@@ -259,6 +299,7 @@ if(RGBPICKER_BUILD_GUI)
             shell32
     )
     rgbpicker_enable_warnings(rgb-picker)
+    rgbpicker_enable_clang_tidy(rgb-picker)
 
     add_custom_command(
         TARGET rgb-picker
@@ -274,14 +315,13 @@ endif()
 if(BUILD_TESTING)
     add_executable(
         rgb-picker-tests
-        tests/backend/device/device_rules_test.cpp
-        tests/backend/hardware/hardware_backend_test.cpp
-        tests/backend/session/backend_session_test.cpp
-        tests/backend/simulation/simulation_backend_test.cpp
-        tests/cli/cli_contract_test.cpp
-        tests/core/color_test.cpp
-        tests/storage/profiles_test.cpp
-        tests/storage/settings_test.cpp
+        src/backend/device/device_rules_test.cpp
+        src/backend/hardware/hardware_backend_test.cpp
+        src/backend/session/backend_session_test.cpp
+        src/cli/cli_contract_test.cpp
+        src/core/color_test.cpp
+        src/storage/profiles_test.cpp
+        src/storage/settings_test.cpp
         tests/test_main.cpp
     )
     target_compile_features(rgb-picker-tests PRIVATE cxx_std_23)
@@ -297,8 +337,91 @@ if(BUILD_TESTING)
             rgbpicker_cli
     )
     rgbpicker_enable_warnings(rgb-picker-tests)
+    rgbpicker_enable_clang_tidy(rgb-picker-tests)
     if(WIN32)
         rgbpicker_ship_libusb(rgb-picker-tests)
     endif()
     add_test(NAME rgb-picker-tests COMMAND rgb-picker-tests)
+endif()
+
+if(WIN32 AND TARGET rgb-picker)
+    install(TARGETS rgb-picker RUNTIME DESTINATION .)
+    if(TARGET rgb-ctl)
+        install(TARGETS rgb-ctl RUNTIME DESTINATION .)
+    endif()
+
+    install(FILES ${libusb_vendor}/MinGW64/dll/libusb-1.0.dll DESTINATION .)
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/ DESTINATION fonts)
+    install(
+        FILES
+            ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE
+            ${CMAKE_CURRENT_SOURCE_DIR}/NOTICE.md
+        DESTINATION .
+    )
+    install(
+        FILES ${CMAKE_CURRENT_SOURCE_DIR}/third_party/hidapi/LICENSE-bsd.txt
+        DESTINATION licenses
+        RENAME hidapi-BSD-3-Clause.txt
+    )
+    install(
+        FILES ${imgui_SOURCE_DIR}/LICENSE.txt
+        DESTINATION licenses
+        RENAME Dear-ImGui-MIT.txt
+    )
+    install(
+        FILES ${libusb_vendor}/COPYING
+        DESTINATION licenses
+        RENAME libusb-LGPL-2.1.txt
+    )
+
+    if(MINGW)
+        get_filename_component(mingw_binary_directory ${CMAKE_CXX_COMPILER} DIRECTORY)
+        get_filename_component(mingw_prefix ${mingw_binary_directory} DIRECTORY)
+        foreach(runtime_library IN ITEMS libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll)
+            execute_process(
+                COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=${runtime_library}
+                OUTPUT_VARIABLE runtime_library_path
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                RESULT_VARIABLE runtime_lookup_result
+            )
+            if(
+                runtime_lookup_result EQUAL 0
+                AND NOT runtime_library_path STREQUAL runtime_library
+                AND EXISTS ${runtime_library_path}
+            )
+                install(FILES ${runtime_library_path} DESTINATION .)
+            elseif(RGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS)
+                message(FATAL_ERROR "Unable to locate MinGW runtime library: ${runtime_library}")
+            endif()
+        endforeach()
+        install(
+            DIRECTORY ${mingw_prefix}/share/licenses/gcc-libs/
+            DESTINATION licenses/mingw-gcc
+        )
+        install(
+            DIRECTORY ${mingw_prefix}/share/licenses/libwinpthread/
+            DESTINATION licenses/mingw-winpthreads
+        )
+    endif()
+
+    set(CPACK_GENERATOR "ZIP;NSIS")
+    set(CPACK_PACKAGE_NAME "RGB Picker")
+    set(CPACK_PACKAGE_VENDOR "dahl-jar")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Windows RGB hardware controller")
+    set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+    set(CPACK_PACKAGE_FILE_NAME "rgb-picker-${PROJECT_VERSION}-windows-x64")
+    set(CPACK_PACKAGE_INSTALL_DIRECTORY "RGB Picker")
+    set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
+    set(CPACK_MONOLITHIC_INSTALL ON)
+    file(TO_NATIVE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/assets/app.ico rgbpicker_nsis_icon)
+    set(CPACK_NSIS_DISPLAY_NAME "RGB Picker")
+    set(CPACK_NSIS_PACKAGE_NAME "RGB Picker")
+    set(CPACK_NSIS_MUI_ICON ${rgbpicker_nsis_icon})
+    set(CPACK_NSIS_MUI_UNIICON ${rgbpicker_nsis_icon})
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "rgb-picker.exe")
+    set(CPACK_NSIS_MUI_FINISHPAGE_RUN "rgb-picker.exe")
+    set(CPACK_NSIS_MENU_LINKS "rgb-picker.exe" "RGB Picker")
+    set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
+    set(CPACK_NSIS_MODIFY_PATH OFF)
+    include(CPack)
 endif()

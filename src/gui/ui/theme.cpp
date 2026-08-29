@@ -1,4 +1,4 @@
-#include "gui/theme.h"
+#include "gui/ui/theme.h"
 
 #include <array>
 #include <filesystem>

@@ -349,23 +349,18 @@ int runCommand(const CommandContext& context)
 int runCli(const std::vector<std::string>& arguments, CliEnvironment& environment,
            std::ostream& output, std::ostream& error)
 {
-    const auto options{parseOptions(arguments)};
-    if (!options.has_value()) {
-        return 1;
-    }
-    if (!hasValidArity(options->command)) {
+    const Options options{arguments};
+    if (!hasValidArity(options.command)) {
         printUsage(error);
         return 1;
     }
 
-    const auto parsed{parseCommandArguments(*options, error)};
+    const auto parsed{parseCommandArguments(options, error)};
     if (!parsed.has_value()) {
         return 1;
     }
 
-    BackendSessionConfig config;
-    config.mode = options->simulate ? BackendMode::simulation : BackendMode::hardware;
-    BackendSession session{environment.factory, config, environment.now};
+    BackendSession session{environment.factory, BackendSessionConfig{}, environment.now};
 
     Backend* const backend{
         session.waitUntilReady(environment.backendWaitBudget, environment.sleep)};
@@ -379,7 +374,7 @@ int runCli(const std::vector<std::string>& arguments, CliEnvironment& environmen
         error << "device listing failed\n";
         return 2;
     }
-    const CommandContext context{*options, *parsed, *discovered, *backend, output,
+    const CommandContext context{options, *parsed, *discovered, *backend, output,
                                  error};
     return runCommand(context);
 }

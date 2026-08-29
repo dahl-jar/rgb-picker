@@ -1,6 +1,6 @@
-#include "gui/session.h"
+#include "gui/app/session.h"
 
-#include "gui/app_state.h"
+#include "gui/app/app_state.h"
 
 #include <algorithm>
 

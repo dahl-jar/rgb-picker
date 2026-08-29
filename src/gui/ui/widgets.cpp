@@ -1,6 +1,6 @@
-#include "gui/widgets.h"
+#include "gui/ui/widgets.h"
 
-#include "gui/theme.h"
+#include "gui/ui/theme.h"
 
 #include <algorithm>
 #include <array>

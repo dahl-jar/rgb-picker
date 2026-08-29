@@ -2,8 +2,7 @@
 
 ## Architecture
 
-The backend contract lives in `include/rgbpicker/backend.h`. The GUI, CLI, session lifecycle, and
-tests depend on this interface.
+The backend contract lives in `include/rgbpicker/backend.h`. GUI, CLI, session lifecycle, and tests depend on this interface.
 
 ```text
 third_party/openrgb-src
@@ -24,23 +23,30 @@ third_party/openrgb-src
   rgb-picker  rgb-ctl
 ```
 
-`DriverBackend` adapts one OpenRGB `RGBController` to the application backend. `MergedBackend`
-combines detected controllers, assigns application device IDs, and routes writes to their owning
-controller. `BackendSession` creates the selected backend and manages retries.
+`DriverBackend` adapts one OpenRGB `RGBController` to the application backend. `MergedBackend` combines detected controllers, assigns application device IDs, and routes writes to their owning controller. `BackendSession` creates and validates the hardware backend, then manages retries.
 
-Fork-specific includes stay in `src/backend/hardware/driver_backend.cpp` and the Windows CMake
-configuration. The rest of the application uses the backend contract.
+Fork-specific includes stay in `src/backend/hardware/driver_backend.cpp` and the Windows CMake configuration. The rest of the application uses the backend contract.
 
 ## Source layout
 
 - `include/rgbpicker/`: public interfaces and data types
-- `src/backend/`: device rules, runtime factory, hardware adapters, session, and simulator
-- `src/cli/`: command parsing and execution
-- `src/storage/`: settings, profiles, applied colors, and zone layouts
-- `src/gui/`: Win32 and Dear ImGui code
-- `tests/`: feature folders matching the production layout
+- `src/backend/device/`: device rules and mode selection
+- `src/backend/factory/`: runtime backend construction
+- `src/backend/hardware/`: OpenRGB adapters, discovery, and backend composition
+- `src/backend/session/`: connection lifecycle and retry policy
+- `src/cli/`: command parsing, execution, and co-located contract tests
+- `src/core/`: shared color behavior and its tests
+- `src/storage/`: settings, profiles, applied colors, zone layouts, and tests
+- `src/gui/app/`: UI state, frame composition, picker session, and worker lifecycle
+- `src/gui/devices/`: device properties and color workspace
+- `src/gui/profiles/`: profile rail
+- `src/gui/settings/`: settings dialog
+- `src/gui/ui/`: theme, fonts, and shared ImGui primitives
+- `tests/`: test runner and shared recording fixtures
 - `third_party/openrgb-src/`: OpenRGB source fork
 - `third_party/openrgb/shim/`: interfaces needed by the compiled driver set
+
+Feature tests live beside the production code they verify. Only the runner and shared fixtures stay under `tests/`.
 
 The main CMake targets follow this dependency order:
 
@@ -54,51 +60,74 @@ rgbpicker_backend
 rgbpicker_cli
 ```
 
-The GUI links `rgbpicker_backend` and `rgbpicker_storage`. Tests link `rgbpicker_cli`,
-`rgbpicker_backend`, `rgbpicker_storage`, and `rgbpicker_core` through target dependencies.
+The GUI links `rgbpicker_backend` and `rgbpicker_storage`. Tests link the same target graph through `rgbpicker_cli`.
 
 ## Backend lifecycle
 
-`BackendSession` creates the hardware backend and accepts it after discovery returns a device. An
-unavailable backend is recreated with capped exponential backoff. The clock and sleeper are
-injected so tests can advance time directly.
+`BackendSession` accepts a hardware backend only after discovery returns at least one device. An unavailable backend is recreated with capped exponential backoff. The clock and sleeper are injected so tests can advance time directly.
 
-The GUI worker owns calls to the live backend. It drains queued operations, refreshes discovery,
-restores zone sizes before colors, and publishes device snapshots to the render thread.
+The GUI worker owns calls to the live backend. It drains queued operations, refreshes discovery, restores zone sizes before colors, and publishes device snapshots to the render thread.
 
 ## Build and test
 
+A portable build compiles the CLI, first-party backend contracts, storage, and tests without the Windows GUI:
+
 ```sh
-# configure a simulator build
-cmake -S . -B build-sim \
+cmake -S . -B build \
   -DRGBPICKER_BUILD_GUI=OFF \
   -DBUILD_TESTING=ON \
   -DCMAKE_BUILD_TYPE=Debug
-
-# compile, test, and list simulated devices
-cmake --build build-sim --parallel
-ctest --test-dir build-sim --output-on-failure
-./build-sim/rgb-ctl --simulate list
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
 ```
 
-The automated suite uses simulated hardware. Physical-device checks run on Windows with the USB
-controllers, firmware, and display driver present.
+Tests use recording backends and do not require physical devices. Hardware checks run on Windows with the controllers, firmware, and display driver present.
+
+## Lint
+
+Install Clang-Tidy and configure the strict build:
+
+```sh
+cmake -S . -B build-lint \
+  -DRGBPICKER_BUILD_GUI=OFF \
+  -DRGBPICKER_ENABLE_CLANG_TIDY=ON \
+  -DRGBPICKER_WARNINGS_AS_ERRORS=ON \
+  -DBUILD_TESTING=ON
+cmake --build build-lint --parallel
+```
+
+The lint configuration covers first-party C++ with Clang analyzer, bug-prone, performance, and portability checks. Vendored OpenRGB and hidapi sources are excluded.
+
+## Package
+
+Windows release builds use MSYS2 UCRT64 with GCC, CMake, Ninja, and NSIS:
+
+```sh
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DRGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS=ON \
+  -DBUILD_TESTING=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+cpack --config build/CPackConfig.cmake -G ZIP -B artifacts
+cpack --config build/CPackConfig.cmake -G NSIS -B artifacts
+```
+
+Both packages contain the GUI, CLI, libusb, MinGW runtime DLLs, fonts, notices, and license texts. The NSIS package adds an RGB Picker Start Menu entry.
+
+Tags matching `vMAJOR.MINOR.PATCH` trigger the release workflow. It rebuilds and tests the Windows target, creates both packages and their SHA-256 checksums, then attaches them to the matching GitHub Release.
 
 ## Adding a driver
 
-Keep upstream source changes under `third_party/openrgb-src`. Add the driver's translation units,
-include paths, and system libraries to `openrgb_drivers` in `CMakeLists.txt`.
+Keep upstream source changes under `third_party/openrgb-src`. Add the driver's translation units, include paths, and system libraries to `openrgb_drivers` in `CMakeLists.txt`.
 
-The detector must register an `RGBController`. The whole-archive link keeps static detector
-registrations in the final binary. `DriverBackend` supplies the application adapter and
-`MergedBackend` supplies device IDs and routing.
+The detector must register an `RGBController`. The whole-archive link keeps static detector registrations in the final binary. `DriverBackend` supplies the application adapter and `MergedBackend` supplies device IDs and routing.
 
 Record local fork changes and upstream commit details in `NOTICE.md`.
 
 ## L-Connect services
 
-L-Connect 3 can overwrite effects and block resizing. Stop its watcher before its service from an
-administrator PowerShell:
+L-Connect 3 can overwrite effects and block resizing. Stop its watcher before its service from an administrator PowerShell:
 
 ```powershell
 Stop-Service LConnectServiceWatcher

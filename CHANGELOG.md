@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-08-29
+
+### Added
+
+- Added CI jobs for Clang-Tidy, warnings-as-errors builds, Linux and macOS tests, sanitizers, and the full Windows target.
+- Added tagged GitHub Release publishing with a Windows installer, portable ZIP, and SHA-256 checksums.
+- Added CPack install rules for executables, runtime DLLs, fonts, notices, and third-party license texts.
+
+### Changed
+
+- Moved feature tests beside their production code. Shared test infrastructure remains under `tests/`.
+- Split the GUI into app, devices, profiles, settings, and UI feature folders.
+- Pinned Dear ImGui 1.91.8 to its commit and completed binary-distribution notices.
+
+### Removed
+
+- Removed the simulator backend, simulator-only tests, and the `rgb-ctl --simulate` option.
+
+### Verified
+
+- 67 tests pass in normal and AddressSanitizer/UndefinedBehaviorSanitizer builds.
+- Strict compiler warnings, GitHub workflow linting, Windows resource generation, and CPack metadata checks pass.
+
 ## 2026-07-27
 
 ### Added

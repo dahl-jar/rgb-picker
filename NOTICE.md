@@ -60,9 +60,39 @@ Project-owned compatibility files live in `third_party/openrgb/shim/`:
 - License: MIT
 - Copyright: 2013-2022 Niels Lohmann
 
+## libusb
+
+- Source: `third_party/openrgb-src/dependencies/libusb-1.0.27/`
+- Upstream: <https://github.com/libusb/libusb>
+- Version: 1.0.27
+- License: LGPL-2.1-or-later
+- License text: `third_party/openrgb-src/dependencies/libusb-1.0.27/COPYING`
+
 ## hidapi
 
 - Source: `third_party/hidapi/`
 - Upstream: <https://github.com/libusb/hidapi>
 - License choice: GPL-3.0, BSD-3-Clause, or the original HIDAPI license
 - Selected license: BSD-3-Clause
+- License text: `third_party/hidapi/LICENSE-bsd.txt`
+
+## Dear ImGui
+
+- Upstream: <https://github.com/ocornut/imgui>
+- Version: 1.91.8 at commit `dbb5eeaadffb6a3ba6a60de1290312e5802dba5a`
+- License: MIT
+- Copyright: 2014-2025 Omar Cornut
+
+CMake fetches Dear ImGui during Windows GUI configuration. Release packages include its license as `licenses/Dear-ImGui-MIT.txt`.
+
+## Roboto
+
+- Source: `assets/fonts/Roboto.ttf`
+- Upstream: <https://github.com/googlefonts/roboto-classic>
+- License: SIL Open Font License 1.1
+- License text: `assets/fonts/OFL.txt`
+- Copyright: 2011 The Roboto Project Authors
+
+## MinGW runtime
+
+Windows release packages include `libgcc_s_seh-1.dll`, `libstdc++-6.dll`, and `libwinpthread-1.dll` from the MSYS2 UCRT64 toolchain. GCC runtime terms and the GCC Runtime Library Exception are stored under `licenses/mingw-gcc/` in each package. Winpthreads terms are stored under `licenses/mingw-winpthreads/`.

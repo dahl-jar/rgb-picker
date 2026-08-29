@@ -1,7 +1,7 @@
-#include "gui/workspace.h"
+#include "gui/devices/workspace.h"
 
-#include "gui/theme.h"
-#include "gui/widgets.h"
+#include "gui/ui/theme.h"
+#include "gui/ui/widgets.h"
 
 #include <algorithm>
 #include <array>

@@ -1,8 +1,8 @@
-#include "gui/rail.h"
+#include "gui/profiles/rail.h"
 
-#include "gui/app_state.h"
-#include "gui/theme.h"
-#include "gui/widgets.h"
+#include "gui/app/app_state.h"
+#include "gui/ui/theme.h"
+#include "gui/ui/widgets.h"
 
 #include <algorithm>
 #include <array>

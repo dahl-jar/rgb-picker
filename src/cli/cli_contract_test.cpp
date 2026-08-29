@@ -33,7 +33,7 @@ TEST(should_list_devices_zones_and_modes)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "list"}, factory)};
+    const CliResult result{invoke({"list"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_CONTAINS(result.output, "[0] Lian Li Uni Hub - SL V2 v0.5");
@@ -48,7 +48,7 @@ TEST(should_default_to_the_lian_filter)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "set", "purple"}, factory)};
+    const CliResult result{invoke({"set", "purple"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.state->calls.size(), std::size_t{2});
@@ -64,8 +64,7 @@ TEST(should_match_filter_case_insensitively)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{
-        invoke({"--simulate", "set", "#20a0f0", "SL V2"}, factory)};
+    const CliResult result{invoke({"set", "#20a0f0", "SL V2"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.state->calls.size(), std::size_t{1});
@@ -77,7 +76,7 @@ TEST(should_forward_zone_color)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "zone", "0", "2", "cyan"}, factory)};
+    const CliResult result{invoke({"zone", "0", "2", "cyan"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.state->calls.size(), std::size_t{1});
@@ -92,7 +91,7 @@ TEST(should_report_resized_zone)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "resize", "0", "1", "96"}, factory)};
+    const CliResult result{invoke({"resize", "0", "1", "96"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.state->calls.size(), std::size_t{1});
@@ -106,8 +105,7 @@ TEST(should_forward_multiword_mode)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{
-        invoke({"--simulate", "mode", "1", "Rainbow Wave"}, factory)};
+    const CliResult result{invoke({"mode", "1", "Rainbow Wave"}, factory)};
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.state->calls.size(), std::size_t{1});
@@ -120,11 +118,11 @@ TEST(should_forward_multiword_mode)
 TEST(should_reject_wrong_arity_before_connecting)
 {
     const std::array<std::vector<std::string>, 5> commands{{
-        {"--simulate", "set"},
-        {"--simulate", "zone", "0", "1"},
-        {"--simulate", "resize", "0", "1"},
-        {"--simulate", "mode", "0"},
-        {"--simulate", "list", "extra"},
+        {"set"},
+        {"zone", "0", "1"},
+        {"resize", "0", "1"},
+        {"mode", "0"},
+        {"list", "extra"},
     }};
 
     for (const auto& command : commands) {
@@ -134,9 +132,8 @@ TEST(should_reject_wrong_arity_before_connecting)
 
         EXPECT_EQ(result.exitCode, 1);
         EXPECT_EQ(result.error,
-                  std::string{"usage: rgb-ctl [--simulate] <command>\n"
+                  std::string{"usage: rgb-ctl <command>\n"
                               "commands: list, set, zone, resize, mode, rainbow\n"});
-        EXPECT_EQ(factory.simulationCreations, 0);
         EXPECT_EQ(factory.hardwareCreations, 0);
     }
 }
@@ -148,9 +145,9 @@ TEST(should_reject_nonnumeric_ids)
         std::string error;
     };
     const std::array<Row, 3> rows{{
-        {{{"--simulate", "zone", "abc", "0", "red"}}, "invalid device ID: abc\n"},
-        {{{"--simulate", "resize", "0", "1x", "4"}}, "invalid zone ID: 1x\n"},
-        {{{"--simulate", "resize", "0", "1", "4x"}}, "invalid size: 4x\n"},
+        {{{"zone", "abc", "0", "red"}}, "invalid device ID: abc\n"},
+        {{{"resize", "0", "1x", "4"}}, "invalid zone ID: 1x\n"},
+        {{{"resize", "0", "1", "4x"}}, "invalid size: 4x\n"},
     }};
 
     for (const auto& row : rows) {
@@ -171,8 +168,8 @@ TEST(should_reject_negative_ids)
         std::string error;
     };
     const std::array<Row, 2> rows{{
-        {{{"--simulate", "zone", "-1", "0", "red"}}, "invalid device ID: -1\n"},
-        {{{"--simulate", "zone", "0", "-1", "red"}}, "invalid zone ID: -1\n"},
+        {{{"zone", "-1", "0", "red"}}, "invalid device ID: -1\n"},
+        {{{"zone", "0", "-1", "red"}}, "invalid zone ID: -1\n"},
     }};
 
     for (const auto& row : rows) {
@@ -190,18 +187,18 @@ TEST(should_reject_unknown_color_before_connecting)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "set", "not-a-color"}, factory)};
+    const CliResult result{invoke({"set", "not-a-color"}, factory)};
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.error, std::string{"unknown color: not-a-color\n"});
-    EXPECT_EQ(factory.simulationCreations, 0);
+    EXPECT_EQ(factory.hardwareCreations, 0);
 }
 
 TEST(should_reject_unmatched_filter)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "set", "red", "missing"}, factory)};
+    const CliResult result{invoke({"set", "red", "missing"}, factory)};
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.error, std::string{"No devices match filter: missing\n"});
@@ -212,7 +209,7 @@ TEST(should_reject_missing_device_argument)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "zone", "9", "0", "red"}, factory)};
+    const CliResult result{invoke({"zone", "9", "0", "red"}, factory)};
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.error, std::string{"Device not found: 9\n"});
@@ -223,7 +220,7 @@ TEST(should_reject_missing_zone_argument)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "zone", "0", "9", "red"}, factory)};
+    const CliResult result{invoke({"zone", "0", "9", "red"}, factory)};
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.error,
@@ -235,7 +232,7 @@ TEST(should_reject_unsupported_mode)
 {
     RecordingBackendFactory factory;
 
-    const CliResult result{invoke({"--simulate", "mode", "0", "Missing"}, factory)};
+    const CliResult result{invoke({"mode", "0", "Missing"}, factory)};
 
     EXPECT_EQ(result.exitCode, 1);
     EXPECT_EQ(result.error,
@@ -257,9 +254,9 @@ TEST(should_exit_2_when_hardware_is_unavailable)
 TEST(should_exit_2_when_discovery_fails)
 {
     RecordingBackendFactory factory;
-    factory.state->failDiscovery = true;
+    factory.state->discoveryFailureAfterCalls = 1;
 
-    const CliResult result{invoke({"--simulate", "list"}, factory)};
+    const CliResult result{invoke({"list"}, factory)};
 
     EXPECT_EQ(result.exitCode, 2);
     EXPECT_EQ(result.error, std::string{"device listing failed\n"});
@@ -270,22 +267,23 @@ TEST(should_exit_2_when_zone_color_fails)
     RecordingBackendFactory factory;
     factory.state->failMutation = true;
 
-    const CliResult result{invoke({"--simulate", "zone", "0", "0", "red"}, factory)};
+    const CliResult result{invoke({"zone", "0", "0", "red"}, factory)};
 
     EXPECT_EQ(result.exitCode, 2);
     EXPECT_EQ(result.error,
               std::string{"zone color operation failed: device 0, zone 0\n"});
 }
 
-TEST(should_route_simulate_to_the_simulation_backend)
+TEST(should_reject_removed_simulate_option)
 {
     RecordingBackendFactory factory;
-    factory.failHardwareCreation = true;
 
     const CliResult result{invoke({"--simulate", "list"}, factory)};
 
-    EXPECT_EQ(result.exitCode, 0);
-    EXPECT_EQ(factory.simulationCreations, 1);
+    EXPECT_EQ(result.exitCode, 1);
+    EXPECT_EQ(result.error,
+              std::string{"usage: rgb-ctl <command>\n"
+                          "commands: list, set, zone, resize, mode, rainbow\n"});
     EXPECT_EQ(factory.hardwareCreations, 0);
 }
 
@@ -297,7 +295,6 @@ TEST(should_use_hardware_backend_by_default)
 
     EXPECT_EQ(result.exitCode, 0);
     EXPECT_EQ(factory.hardwareCreations, 1);
-    EXPECT_EQ(factory.simulationCreations, 0);
     EXPECT_CONTAINS(result.output, "Lian Li Uni Hub");
 }
 

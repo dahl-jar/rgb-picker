@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes clang-tidy ninja-build
+      - name: Configure
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DRGBPICKER_BUILD_GUI=OFF
+          -DRGBPICKER_ENABLE_CLANG_TIDY=ON
+          -DRGBPICKER_WARNINGS_AS_ERRORS=ON
+          -DBUILD_TESTING=ON
+      - name: Run lint build
+        run: cmake --build build --parallel
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DRGBPICKER_BUILD_GUI=OFF
+          -DRGBPICKER_WARNINGS_AS_ERRORS=ON
+          -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    name: Sanitizers
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DCMAKE_C_COMPILER=clang
+          -DCMAKE_CXX_COMPILER=clang++
+          -DCMAKE_CXX_FLAGS=-fsanitize=address,undefined\ -fno-omit-frame-pointer
+          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined
+          -DRGBPICKER_BUILD_GUI=OFF
+          -DRGBPICKER_WARNINGS_AS_ERRORS=ON
+          -DBUILD_TESTING=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  windows:
+    name: Windows package
+    runs-on: windows-latest
+    steps:
+      - name: Configure Git line endings
+        run: git config --global core.autocrlf input
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-nsis
+      - name: Configure
+        shell: msys2 {0}
+        run: >-
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DRGBPICKER_REQUIRE_MINGW_RUNTIME_DLLS=ON
+          -DRGBPICKER_WARNINGS_AS_ERRORS=ON
+          -DBUILD_TESTING=ON
+      - name: Build
+        shell: msys2 {0}
+        run: cmake --build build --parallel
+      - name: Test
+        shell: msys2 {0}
+        run: ctest --test-dir build --output-on-failure
+      - name: Verify install manifest
+        shell: msys2 {0}
+        run: |
+          cmake --install build --prefix stage
+          test -f stage/rgb-picker.exe
+          test -f stage/rgb-ctl.exe
+          test -f stage/libusb-1.0.dll
+          test -f stage/libgcc_s_seh-1.dll
+          test -f stage/libstdc++-6.dll
+          test -f stage/libwinpthread-1.dll
+          test -f stage/fonts/Roboto.ttf
+          test -f stage/fonts/OFL.txt
+          test -f stage/LICENSE
+          test -f stage/NOTICE.md
+          test -f stage/licenses/Dear-ImGui-MIT.txt
+          test -f stage/licenses/hidapi-BSD-3-Clause.txt
+          test -f stage/licenses/libusb-LGPL-2.1.txt
+          test -f stage/licenses/mingw-gcc/COPYING.RUNTIME
+          test -f stage/licenses/mingw-winpthreads/COPYING
+      - name: Package
+        shell: msys2 {0}
+        run: |
+          cpack --config build/CPackConfig.cmake -G ZIP -B artifacts
+          cpack --config build/CPackConfig.cmake -G NSIS -B artifacts
+      - name: Upload package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: rgb-picker-windows-x64
+          path: |
+            artifacts/*.zip
+            artifacts/*.exe
+          if-no-files-found: error
+          retention-days: 14

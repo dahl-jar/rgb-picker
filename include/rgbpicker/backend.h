@@ -107,7 +107,6 @@ public:
 
     virtual std::expected<std::unique_ptr<Backend>, BackendError>
     createHardware() = 0;
-    virtual std::unique_ptr<Backend> createSimulation() = 0;
 };
 
 }

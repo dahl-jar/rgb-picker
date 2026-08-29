@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <expected>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -62,6 +63,8 @@ struct BackendState {
     std::vector<rgbpicker::Device> devices{primaryDevices()};
     std::vector<BackendCall> calls;
     bool failDiscovery{};
+    std::optional<int> discoveryFailureAfterCalls;
+    int discoveryCalls{};
     bool failMutation{};
 };
 
@@ -71,7 +74,11 @@ public:
 
     std::expected<std::vector<rgbpicker::Device>, rgbpicker::BackendError> discover() override
     {
-        if (m_state->failDiscovery) {
+        const bool scheduledFailure{
+            m_state->discoveryFailureAfterCalls.has_value() &&
+            m_state->discoveryCalls >= *m_state->discoveryFailureAfterCalls};
+        ++m_state->discoveryCalls;
+        if (m_state->failDiscovery || scheduledFailure) {
             return std::unexpected{rgbpicker::BackendError::unavailable};
         }
         return m_state->devices;
@@ -161,7 +168,6 @@ class RecordingBackendFactory final : public rgbpicker::BackendFactory {
 public:
     std::shared_ptr<BackendState> state{std::make_shared<BackendState>()};
     int hardwareCreations{};
-    int simulationCreations{};
     bool failHardwareCreation{};
 
     std::expected<std::unique_ptr<rgbpicker::Backend>, rgbpicker::BackendError>
@@ -171,12 +177,6 @@ public:
         if (failHardwareCreation) {
             return std::unexpected{rgbpicker::BackendError::unavailable};
         }
-        return std::make_unique<RecordingBackend>(state);
-    }
-
-    std::unique_ptr<rgbpicker::Backend> createSimulation() override
-    {
-        ++simulationCreations;
         return std::make_unique<RecordingBackend>(state);
     }
 };

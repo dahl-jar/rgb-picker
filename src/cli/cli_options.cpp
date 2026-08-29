@@ -24,22 +24,8 @@ std::optional<Integer> parseInteger(std::string_view value, Integer minimum, Int
 
 void printUsage(std::ostream& error)
 {
-    error << "usage: rgb-ctl [--simulate] <command>\n"
+    error << "usage: rgb-ctl <command>\n"
              "commands: list, set, zone, resize, mode, rainbow\n";
-}
-
-std::optional<Options> parseOptions(const std::vector<std::string>& arguments)
-{
-    Options options;
-    for (std::size_t index{}; index < arguments.size(); ++index) {
-        const std::string& argument{arguments.at(index)};
-        if (argument == "--simulate") {
-            options.simulate = true;
-        } else {
-            options.command.push_back(argument);
-        }
-    }
-    return options;
 }
 
 namespace {

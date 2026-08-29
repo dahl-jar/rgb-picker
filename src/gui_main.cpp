@@ -1,7 +1,7 @@
-#include "gui/app_state.h"
-#include "gui/shell.h"
-#include "gui/theme.h"
-#include "gui/worker.h"
+#include "gui/app/app_state.h"
+#include "gui/app/shell.h"
+#include "gui/ui/theme.h"
+#include "gui/app/worker.h"
 
 #include "rgbpicker/runtime_backend_factory.h"
 #include "rgbpicker/profiles.h"

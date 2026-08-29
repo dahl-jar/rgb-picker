@@ -8,7 +8,6 @@
 namespace {
 
 using rgbpicker::BackendError;
-using rgbpicker::BackendMode;
 using rgbpicker::BackendSession;
 using rgbpicker::BackendSessionConfig;
 using rgbpicker::BackendSessionPhase;
@@ -124,21 +123,6 @@ TEST(should_double_retry_delay_up_to_ceiling)
     EXPECT_EQ(rgbpicker::retryDelay(config, 3), milliseconds{2000});
     EXPECT_EQ(rgbpicker::retryDelay(config, 4), milliseconds{4000});
     EXPECT_EQ(rgbpicker::retryDelay(config, 30), milliseconds{4000});
-}
-
-TEST(should_open_simulation_without_probing_hardware)
-{
-    RecordingBackendFactory factory;
-    ManualClock clock;
-    BackendSessionConfig config;
-    config.mode = BackendMode::simulation;
-    BackendSession session{factory, config, clock.reader()};
-
-    const rgbpicker::Backend* const backend{session.poll()};
-
-    EXPECT_TRUE(backend != nullptr);
-    EXPECT_EQ(factory.simulationCreations, 1);
-    EXPECT_EQ(factory.hardwareCreations, 0);
 }
 
 TEST(should_stop_waiting_when_budget_expires)

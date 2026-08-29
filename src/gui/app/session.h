@@ -1,6 +1,6 @@
 #pragma once
 
-#include "gui/worker.h"
+#include "gui/app/worker.h"
 
 #include <array>
 #include <cstddef>

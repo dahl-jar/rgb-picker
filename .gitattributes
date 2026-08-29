@@ -1,3 +1,5 @@
+* text=auto eol=lf
+
 third_party/openrgb-src/** -text
 third_party/hidapi/** -text
 assets/fonts/** -text

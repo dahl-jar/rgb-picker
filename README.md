@@ -1,47 +1,57 @@
-# rgb-picker
+<p align="center">
+  <img src="assets/app.ico" width="112" alt="RGB Picker">
+</p>
 
-`rgb-picker` is a Windows desktop app for controlling RGB hardware. `rgb-ctl` provides the same
-controls from the command line. Both use an in-process backend built from selected drivers in the
-OpenRGB fork under `third_party/openrgb-src`.
+<h1 align="center">RGB Picker</h1>
 
-The desktop app supports saved profiles, per-device colors, brightness, hardware modes, zone
-resizing, login startup, and session restoration. Settings and profiles are stored under
-`%APPDATA%\rgb-picker`.
+<p align="center">
+  RGB Picker is a Windows app for controlling supported RGB hardware through selected OpenRGB drivers linked directly into the application.
+</p>
 
-Windows builds include drivers for Lian Li controllers, Gigabyte RGB Fusion 2 boards, and MSI
-GPUs. The simulator runs on Windows, macOS, and Linux.
+## Stack
 
-Development notes are in [DEVELOPMENT.md](DEVELOPMENT.md). Third-party source and local fork
-changes are recorded in [NOTICE.md](NOTICE.md). Release history is in
-[CHANGELOG.md](CHANGELOG.md).
+C++23 · Dear ImGui · OpenRGB · Win32 · DirectX 11 · CMake
+
+## Features
+
+- Saved lighting profiles and per-device colors
+- Brightness, hardware modes, zone colors, and addressable-zone sizing
+- Login startup and lighting restoration when hardware appears
+- Lian Li controllers, Gigabyte RGB Fusion 2 boards, and MSI GPUs
+- `rgb-ctl` for the same controls from a terminal
+
+Settings and profiles are stored under `%APPDATA%\rgb-picker`.
+
+## Download
+
+Download the installer or portable ZIP from the [latest GitHub Release](https://github.com/dahl-jar/rgb-picker/releases/latest). Each release also includes SHA-256 checksums.
+
+Release builds are unsigned, so Windows may show a SmartScreen warning when opening the installer.
 
 ## Requirements
 
-- CMake 3.16 or newer
-- A compiler and standard library with C++23 support
-- Windows hardware builds: MinGW-w64 and the Windows SDK libraries
-- Windows GUI builds: network access during the first configure so CMake can fetch Dear ImGui
+- Windows 11 x64
+- Supported RGB hardware
+- Administrator access for hardware or service operations that require it
 
-Hardware detection is built on Windows. macOS and Linux builds use the simulator.
+L-Connect 3 can overwrite lighting changes and block zone resizing. Stop its watcher and service with the commands in [DEVELOPMENT.md](DEVELOPMENT.md#l-connect-services).
 
 ## Build
 
-```sh
-# configure the CLI and tests
-cmake -S . -B build -DRGBPICKER_BUILD_GUI=OFF -DBUILD_TESTING=ON
+Install CMake, Ninja, and a C++23-capable MinGW-w64 UCRT64 toolchain, then run:
 
-# compile and run the tests
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-`RGBPICKER_BUILD_GUI` defaults to `ON` on Windows. The Windows build compiles the selected
-OpenRGB drivers into `openrgb_drivers` and links that library into the backend.
+The first GUI configuration fetches the pinned Dear ImGui revision. The selected OpenRGB drivers compile into `openrgb_drivers` and link into the backend.
 
 ## CLI
 
 ```text
-rgb-ctl [--simulate] <command>
+rgb-ctl <command>
 
   list                                 show devices, zones, and modes
   set <color> [device-filter]          set a device color
@@ -57,27 +67,14 @@ Colors may be names such as `red`, `purple`, or `off`, or hexadecimal values suc
 ./build/rgb-ctl list
 ./build/rgb-ctl set purple
 ./build/rgb-ctl set "#00c8ff" "sl v2"
-./build/rgb-ctl --simulate list
 ```
 
-Each simulator process starts with the same in-memory device set.
+An addressable channel may report a size of zero until its LED count is set. Run `list` to check its supported range before using `resize`. SL V2 channels accept up to 96 LEDs; SL v1 channels accept up to 4 fans.
 
-## Zone sizes
+## Development
 
-An addressable channel may report a size of zero until its LED count is set. Check the supported
-range before resizing it:
+Architecture, linting, packaging, and hardware troubleshooting are documented in [DEVELOPMENT.md](DEVELOPMENT.md). Third-party source and local fork changes are recorded in [NOTICE.md](NOTICE.md).
 
-```sh
-./build/rgb-ctl list
-./build/rgb-ctl resize 1 0 64
-```
+## License
 
-SL V2 channels accept up to 96 LEDs. SL v1 channels accept up to 4 fans.
-
-## L-Connect conflict
-
-L-Connect 3 can overwrite lighting changes and block zone resizing. Stop its watcher and service
-using the commands in [DEVELOPMENT.md](DEVELOPMENT.md#l-connect-services). The hubs retain the last
-fan speed after these services stop.
-
-`rgb-picker` is licensed under GPL-2.0-only. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md).
+RGB Picker is licensed under [GPL-2.0-only](LICENSE). Third-party terms are listed in [NOTICE.md](NOTICE.md).
