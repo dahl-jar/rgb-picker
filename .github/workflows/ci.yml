@@ -160,6 +160,8 @@ jobs:
         run: |
           cpack --config build/CPackConfig.cmake -G ZIP -B artifacts
           cpack --config build/CPackConfig.cmake -G NSIS -B artifacts
+          cd artifacts
+          sha256sum *.exe *.zip > SHA256SUMS.txt
       - name: Upload package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -167,5 +169,42 @@ jobs:
           path: |
             artifacts/*.zip
             artifacts/*.exe
+            artifacts/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
+
+  publish:
+    name: Publish latest build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: windows
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: rgb-picker-windows-x64
+          path: artifacts
+      - name: Publish latest build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          notes="Automated build from main at ${GITHUB_SHA}."
+          if gh release view latest >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${GH_REPO}/git/refs/tags/latest" \
+              -f sha="${GITHUB_SHA}" \
+              -F force=true >/dev/null
+            gh release upload latest artifacts/* --clobber
+            gh release edit latest \
+              --latest \
+              --notes "${notes}" \
+              --title "Latest build"
+          else
+            gh release create latest artifacts/* \
+              --latest \
+              --notes "${notes}" \
+              --target "${GITHUB_SHA}" \
+              --title "Latest build"
+          fi

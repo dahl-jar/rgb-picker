@@ -115,7 +115,9 @@ cpack --config build/CPackConfig.cmake -G NSIS -B artifacts
 
 Both packages contain the GUI, CLI, libusb, MinGW runtime DLLs, fonts, notices, and license texts. The NSIS package adds an RGB Picker Start Menu entry.
 
-Tags matching `vMAJOR.MINOR.PATCH` trigger the release workflow. It rebuilds and tests the Windows target, creates both packages and their SHA-256 checksums, then attaches them to the matching GitHub Release.
+Every green `main` build updates the rolling `latest` GitHub Release with both packages and their SHA-256 checksums. The `latest` tag moves to the successful commit rather than creating a release for every push.
+
+Tags matching `vMAJOR.MINOR.PATCH` remain available for versioned releases. They rebuild and test the Windows target, then attach the packages and checksums to the matching GitHub Release.
 
 ## Adding a driver
 

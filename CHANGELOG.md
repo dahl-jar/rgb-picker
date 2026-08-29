@@ -5,7 +5,7 @@
 ### Added
 
 - Added CI jobs for Clang-Tidy, warnings-as-errors builds, Linux and macOS tests, memory-safety checks, and the full Windows target.
-- Added tagged GitHub Release publishing with a Windows installer, portable ZIP, and SHA-256 checksums.
+- Added automatic `main` and versioned GitHub Release publishing with a Windows installer, portable ZIP, and SHA-256 checksums.
 - Added CPack install rules for executables, runtime DLLs, fonts, notices, and third-party license texts.
 
 ### Changed
